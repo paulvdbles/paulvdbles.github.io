@@ -53,6 +53,14 @@ Problem: File class is tightly coupled to system calls. Can't test without real 
     val file = File(SystemIODriver())  // Production
     val testFile = File(MockIODriver()) // Testing
 
+
+```mermaid
+graph TD;
+    A-->B;
+    A-->C;
+    B-->D;
+    C-->D;
+````
 ## The Dependency Flow Reversal
 ### Traditional flow (without DIP):
     File → SystemIODriver → OS System Calls (high-level depends on low-level)
