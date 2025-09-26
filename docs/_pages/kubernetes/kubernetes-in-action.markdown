@@ -1,3 +1,9 @@
+---
+layout: page
+title: "Kubernetes in action"
+permalink: /kubernetes/in-action
+---
+
 # Notes on Kubernetes in action
 
 ## Intro to docker
