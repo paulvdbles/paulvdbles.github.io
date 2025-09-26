@@ -1,6 +1,5 @@
 ---
-layout: home
+layout: page
 ---
-# Notes
 - [SOLID principle](/solid/)
 - [Kubernetes in action](/kubernetes/in-action)
