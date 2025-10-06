@@ -64,7 +64,58 @@ Removing value at index: also in the worst case move all elements
 - Insert / remove end: O(1)
 - Insert / remove middle: O(n)
 
+## 3 - Dynamic Arrays
+In Python and JavaScript dynamic arrays are the default
+In Java you could use the ArrayList
 
+When we create static array we specify the size
+With dynamic array you don't necessarily specify the size: default size would be used
+Consider new dynamic array that can hold 3 values, with nothing in it yet: size = 3, length = 0 yet
+
+Pointer to last element will be kept
+
+Push element at array: insert at next empty spot O(1)
+Pop element: remove from last O(1)
+
+What happens if we run out of space? We need to allocate a new array
+For example, make new array of original size * 2 
+Take all original values, copy into second array
+
+Why double instead of increase + 1? 
+If we run out of space it takes O(n)
+By allocating size * 2 we find middle ground between:
+- allocating new array every time (expensive) 
+- reserving a lot of empty space
+
+Amortized complexity
+- Running out of space doesn't happen often, when it happens it takes O(N)
+- On average it's O(1): the amortized complexity is O(1)
+
+As long as we double dynamic array every time, the ds is efficient
+
+Important:
+- In big O we never care about constants multiplying a variable:
+- O(2*N) can be simplified to O(N)
+- We care about how quickly runtime is growing: whether it runs linearly or exponential
+- We care about what happens at big input size
+
+- Read or write i-th element: O(1)
+- Insert / remove end: O(1)
+- Insert / remove middle: O(n), no amortization for this, this is the worst case and always O(n)
+
+## 4 - Stack
+Stack is one common use case of dynamic array
+
+Operations:
+- Push: O(1)
+- Pop: O(1)
+- Peek/Top: O(1)
+
+Dynamic array satisfy all these requirements: stack can be implemented using dynamic array
+We maintain pointer or number of elements
+We push to end of stack
+
+We remove using LIFO order
 
 
 
