@@ -509,3 +509,285 @@ Utilize cloud native techniques:
 - declarative APIs
 - automation
 For benefits: resilient, manageable, observable, allow frequent and predictable changes
+
+## 4. Scaling databases
+Storage services are stateful service: mechanisms to ensure consistency nd require redundancy to avoid data loss
+
+Types of storage:
+- Database
+  - SQL: tables and relationships. SQL must have ACID properties
+  - NoSQL: a db that has not all SQL properties
+  - Column oriented: organize data into columns, like hbase
+  - Key-value: Data is stored as colleciton fo key value pairs, Key corresponds to disk location via hashing algorithm.
+    Read performance is good, keys are hashable
+- Document: can be interpreted as key-value database where values have no size limits. Value can be text, json or yaml for example
+- Graph: efficiently store relationships between entities. Example is Neo4J
+- File storage: data stored in files, can be organized into directories/folders
+- Block storage: stores data in evenly sized chunks with unique identifiers. Not used a lot for web applications, more for low level components of other storage systems like dbs
+- Object storage: Flatter hierarchy than file storage. Objects are accessed with simple HTTP API. Writing object is slow, and object annot be modified so only for static data. For example aws S3
+
+Database or other way to store data?
+Could also use file, block, object storage. 
+During you can have preference but should be able to discuss relevant factor and consider others
+
+Decision is based on discretion and heuristics
+- Discretion: There's no single "correct" answer that applies universally. The developer uses their judgment based on the specific situation, requirements, and context of the project. It's a subjective decision that different experienced developers might make differently.
+- Heuristics: These are practical rules of thumb or guidelines that developers have learned through experience, rather than strict formulas. For example:
+  - "If you need complex queries and relationships between data, use a database"
+  - "If you're storing large binary files like images or videos, use the filesystem"
+  - "If multiple users need concurrent access with transactions, use a database"
+  - "If the data structure is simple and won't change much, files might be sufficient"
+
+### Replication
+Scaling a database: implement a distributed db onto multiple nodes
+Scaling happens via replication, partitioning and sharding
+- Replication: Making copies of data, storing them on different nodes
+  - Purpose: redundancy, high availability, read performance 
+- Partitioning: is dividing a large dataset into subsets called "partitions" based on certain criteria. Partitions can all exist on the same node.
+  - Purpose: Organization, query performance, maintenance
+- Sharding: Divide data in subset + distribute across nodes
+  - Purpose: horizontal scaling, handling data too large for one server
+
+
+Single host has limitations and cannot fulfill our requirements:
+- Fault tolerance: nodes back up data on other nodes
+- High storage capacity: single node can be vertically scaled but that's expensive and nodes throughput can become problem
+- Higher throughput: database needs to process reads and writes for multiple processes / users
+- Lower latency: we can geographically distribute replicas to be closer to users
+
+Scale reads (query's with SELECT): increase number of replicas
+Scale writes: more difficult
+
+Typical design: 
+- one backup onto a host on the same rack
+- one backup on a host on a different rack or DC or both
+
+Sharding data gives benefits:
+- Scale storage: db too big for one node? sharding across nodes helps
+- Scale memory: db stored in memory needs to be sharded because vertical scaling of memory on single node is expensive
+- Scale processing: process in parallel
+- Locality: we can shard so that data needed by particular cluster node is stored closer than on another shard
+Trade off is increased complexity (need to track shards locations)
+
+Single leader replication: 
+- all write operations occur on a single node (leader)
+- Scaling reads, not writes
+- SQL service loses its ACID consistency
+- Simplest to implement
+
+Multi leader replication:
+- scale writes and db storage size
+- Require handling race conditions, which are not present in single leader replication
+- Each leader must replicate its writes to all other nodes
+
+Replication introduces consistency and race conditions for operations where sequence matters
+
+Consistency: 
+- ensure a db transaction brings the db from one valid state to another
+- any data written to the db must be valid according to rules
+
+Look for ways to relax consistency requirements.
+
+Leaderless replication: all nodes equal
+Reads and writes can occur on any node
+
+HDFS replication: does not fit into any of these three approaches
+
+### Scaling storage capacity with sharded databases
+If the db size grows to exceed the capacity of a single host we need to delete old rows
+Retain old data: store in sharded storage: HDFS or Cassandra
+Or sharded RDBMS
+
+### Aggregating events
+Database writes are difficult and expensive to scale, try to reduce the rate of db writes wherever possible
+Techniques:
+- Sampling: consider only certain data points, ignore others
+- Aggregation: combine multiple events into single. Can be implemented using streaming pipeline
+
+Reduce reads:
+- Caching
+- Approximation
+
+Single-tier aggregation
+Multi-tier aggregation
+
+The main tradeoffs of aggregation are eventual consistency and increased complexity. 
+
+Fault tolerance: host goes down? loses all of its aggregated events
+
+### Batch and streaming ETL
+ETL: extract transfer load, copy data from 1 to more sources
+Batch: 
+- process in batches, periodically or manual
+- use batch tools like airflow and luigi 
+
+Streaming:
+- continuous flow, processed in real time
+- use streaming tools Kafka and Flink
+
+ETL pipeline consists of DAG of tasks
+
+Messaging terminology:
+- messaging system: transfer data from one app to another
+- message queue: message goes through queue, wait to be processed
+- producer/consumer: aka publisher/subscriber aka pub/sub is async messaging sys
+- message broker: 
+  - program that translates a message from formal protocol of sender to formal protocol of receiver
+  - Kafka and RabbbitMQ are message brokers
+  - AMQP is protocol implemented by RabbitMQ
+- event streaming: continuous flow of events, processed in real time
+- pull vs push
+  - in general pull is better: consumer controls the rate of message consumption (will not be overloaded)
+  - load/stress test to determine throughput and performance. monitor throughput and queue size of messages
+  - situations where push is better: crawlers or UDP audio video streaming (failed messages are not resent)
+
+Kafka vs RabbitMQ:
+- companies use shared kafka service
+- both:
+  - smooth out uneven traffic
+  - prevent overload by spike
+  - no need for many hosts to handle periods of high traffic: cost efficient
+- different:
+  - kafka is more complex but more capabilities
+  - rabbitmq is not scalable by default
+  - kafka has replication
+    - kafka events are not removed after consumption: same event can be consumed repeatedly. Set retention period to decide when its deleted
+    - rabbitmq messages are removed upon dequeueing
+    - Kafka has no concept of priority, rabbitmq has
+
+if rabbitmq is sufficient we can use it
+
+Lambda architecture:
+- processing big data running batch and streaming pipelines in parallel
+- parallel fast and slow pipelines
+  - fast pipeline achieves speed by:
+    - approximation algo
+    - in memory db (redis?)
+    - no replication
+  - slow pipeline:
+    - mapreduce db (hive, spark with hdfs)
+- update same destination
+- trade offs:
+  - fast pipeline trade off consistency and accuracy for lower latency
+  - slow pipeline vice versa
+
+Use lambda architecture for big data systems that need consistency and accuracy
+
+Database solutions:
+- Common: SQL, Hadoop, HDFS, Kafka, Redis, Elasticsearch
+- Less common: Mongo, neo4j, aws dynamo, google firebase
+
+Kappa architecture as alternative to Lambda architecture:
+- architectural pattern 
+- focuses on handling streaming data and combines both real-time stream processing and batch processing 
+- within a unified technology stack.
+  - Example of kappa: use apache kafka + apache flink to process live events while they arrive + historical data by replaying topic from beginning
+  - Example lambda: apache storm for real time + apache hadoop/spark for batch
+
+### Denormalization
+
+Normalization: breaking down tables into smaller, related tables to reduce redundancy and improve data integrity.
+Benefits:
+- consistent
+- no duplicate data
+- insert and update faster: only one table has to be queried (denormalized schema insert/update may query multiple tables)
+- smaller db size
+- fewer columns -> fewer indexes -> faster index rebuilds
+- queries can join only tables that are needed
+
+Disadvantage of normalization:
+- slow joins
+- tables contain codes rather than data -> queries contain joins -> joins are more verbose to write and maintain
+
+### Caching 
+Cache frequent or recent queries in memory
+
+Caching should improve:
+- performance
+- availability
+- scalability
+
+Caching can be done at many levels: client, api gateway, each service
+
+Read strategies: optimized for fast reads
+
+- Cache aside: cache sitting aside of the db. Application first makes request to cache:
+  - data hit: return data
+  - cache miss: application makes read request to db. then writes data to cache (lazy load)
+  - is best for read heavy loads
+  - advantages:
+    - minimizes the nr of read requests and resource consumption
+    - only requested data will get into the cache
+    - simple
+  - disadvantage:
+    - the cache can become stale. we set a ttl or use write-through
+    - a reuqest with cache miss is slower than directly to db (db read + cache write)
+- Read through: application does not contact db: implementation of db requests goes from app to cache
+  - best for read-heavy loads
+  - cache miss: cache makes request to db and stores data in cache, then returns to app
+  - trade off: multiple db requests can't be grouped as a single cache value (cache aside can)
+
+Write strategies: optimized to minimize stale cache, but higher latency + complexity
+- Write through: every write goes through cache, then to db
+- advantage:
+  - consistent. cache can't go stale
+- disadvantage:
+  - slow write: every write is done on both cache and db
+  - cold start with new cache node , use cache-aside to resolve
+  - most data is never read: use ttl to lower cost and reduce space
+  - In a write-through cache, every write operation updates both the cache AND the database simultaneously. This creates a specific challenge when your cache has limited space 
+- write-back/write-behind: app writes data to cache, but cache not immediately to db
+  - cache flushes updated data to db in intervals
+  - advantage:
+    - faster write than write through
+  - disadvantage:
+    - same as write-through, other than slow writes
+    - more complex: cache must be highly available
+- Write-around: 
+  - app only writes to db
+  - updates cache on cache miss
+
+### Cache as a separate service
+Why is it a separate service and not in memory of a service's host?
+- service is stateless -> request randomly assigned to host -> each host would have different cache data
+- caching is useful when request patterns lead to hot shards
+- cache would be wiped on deployment
+- scale cache independently
+- coalescing: many clients make same request at the same time -> our db service will execute same query. cache deduplicates request and sends a single request to service
+
+Cache on client
+
+Consider cdn
+
+### Data to cache
+Cache either:
+- http response: cache body, retrieve using cache key (HTTP method and URI of request)
+- db queries: use cache-aside to cache relational db queries
+
+pub vs private:
+- private: on a client, for personalized content
+- public: on a proxy like CDN or our services
+
+Don't cache: private info, real time info, copyright
+
+Info that can cache may but cache, should be validated against server
+
+### Cache invalidation
+
+Cache invalidation: replace/remove entries
+Cache busting: cache invalidation for files
+
+Browser: set max age
+
+fingerprinting
+
+On client: use policies like random replacement, LRO, FIFO, LIFO
+
+### Cache warming
+Already fill cache before cache miss can occur
+Applies to: CDN, front end, backend. not to browser
+
+Advantage: first request will have same low latency as next ones
+Disadvantage: complex, more traffic from querying service to fill cache, if we have billion users only 1 will have slow experience, cache items could expire before they are used
+
+## 5. Distributed transactions
