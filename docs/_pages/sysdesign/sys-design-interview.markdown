@@ -791,3 +791,171 @@ Advantage: first request will have same low latency as next ones
 Disadvantage: complex, more traffic from querying service to fill cache, if we have billion users only 1 will have slow experience, cache items could expire before they are used
 
 ## 5. Distributed transactions
+System writes data to other service. 
+Failure could lead to data inconsistency across services.
+
+Transaction:
+- group several reads/write into a logical unit to maintain data consistency across services
+- single operation, executed atomically
+- commit: transaction succeeds
+- abort/rollback: transaction fails
+- ACID properties
+
+If possible, we should use event streaming (like kafka) for writes with services pulling them
+Otherwise use distributed transaction
+
+Distributed transaction: combine separate write requests as a single distributed (atomic) transaction
+
+Consensus: all systems agree that write happened or did not happen
+
+Patterns for maintaining consistency in distributed transactions:
+- event sourcing, change data capture and event driven architecture
+- checkpoint and DLQ
+- SAGA
+- two phase commit
+
+Two-phased commit and saga: achieve consensus
+Others: make one db source of truth when inconsistency happens from failed write
+
+### Event driven architecture
+
+Event driven architecture:
+- announce events that already happened (instead of work to be done)
+- async and non blocking
+- loose coupling, scalability and responsiveness / low latency
+- eventual consistency
+
+Alternative to EDA: service makes request to another service. Expensive, complex, error-prone and less scalable
+- unavailability or slow performance of either service means that the overall system is unavailable
+- consumes thread in each service
+- traffic spike could overwhelm service
+- requestor needs to keep thread until request completed
+- traffic spikes can be solve with auto scaling / rate limiting
+
+However this alternative is:
+- more consistent (operation completes before returning response)
+- EDA has lower latency for the initial response, Direct calls have lower latency for the complete operation
+
+Less resource intensive: event log
+
+We can choose to not follow non-blocking philosophy of EDA (skip request validation)
+
+### Event sourcing
+Event sourcing: pattern for storing data as events in append-only log
+
+1. first make write to event log
+2. write succeeds
+3. event handlers consume new event and write to other db
+
+Can be implemented in multiple ways: kafka topic, row in db, document in mongo, or even in memory db
+
+Complex: manage event stores, replay, versioning and schema updates
+
+### Change Data Capture (CDC)
+Change Data Capture (CDC):
+- log data change events to change log event stream
+- provide event stream via API
+- consistency and lower latency than event sourcing (request processed near rt)
+
+Transaction log tailing pattern: another pattern against inconsistency:
+- process needs to write to db
+- and produce to kafka
+one of those can fail -> inconsistency
+
+### Comparison of event sourcing and CDC
+Both used in distributed systems to propagate data changes
+Decouple services by using async communication
+
+Differences between event source and CDC:
+
+| Aspect | Event Sourcing | Change Data Capture (CDC) |
+|--------|---------------|--------------------------|
+| **Purpose** | Events are the primary record | Sync data changes between services |
+| **Source of Truth** | Event log itself | Publisher's database (events are secondary) |
+| **Granularity** | Business-level actions/state changes | Database-level operations (insert/update/delete) |
+
+**Quick Summary:**
+- **Event Sourcing**: The events ARE your data - rebuild state by replaying events
+- **CDC**: The database is your data - events just notify others about changes
+
+### Transaction supervisor
+Ensures a transaction is successfully completed or compensated
+Periodic batch job or serverless function
+
+First implementation: interface for manual review
+Automating risky, only after extensive testing
+
+### Saga
+SAGA:
+- Pattern to manage failure
+- Long-lived transaction 
+- Can be written as sequence of transactions
+- All must complete successful or roll back
+
+Typical implementation: services communicate through message broker (kafka or rabbbitmq)
+
+Only do distributed transaction if certain services satisfy certain requirements
+
+Saga Example: Travel Package Booking
+
+| Component | Description |
+|-----------|-------------|
+| **Scenario** | Book complete tour package (flight + hotel + payment) |
+| **Services Involved** | 1. Airline Ticket Service<br>2. Hotel Room Service<br>3. Payment Service |
+| **Success Condition** | ALL services must succeed (flight available AND room available AND payment processed) |
+| **Failure Handling** | Any failure triggers rollback in reverse order using compensating transactions |
+
+### Why Separate Payment Service?
+
+1. **Timing Control**: Don't charge customer until flight + hotel confirmed
+2. **Privacy/Security**: Don't share customer payment info with third-party services
+3. **Business Model**: Our company handles customer payment, then pays vendors
+
+### Saga Flow
+
+```
+Success: Airline ✓ → Hotel ✓ → Payment ✓ → Complete
+Failure: Airline ✓ → Hotel ✗ → Rollback Airline → Abort
+         Airline ✓ → Hotel ✓ → Payment ✗ → Rollback Hotel → Rollback Airline → Abort
+```
+
+Key Takeaway: Sagas enable distributed transactions across multiple services with automatic rollback capability when any step fails.
+
+Structure coordination:
+- choreography (parallel) 
+- orchestration (linear)
+
+| Aspect | **Choreography** | **Orchestration** |
+|--------|-----------------|-------------------|
+| **Design Pattern** | Observer pattern | Controller pattern |
+| **Execution Model** | Parallel requests | Linear/sequential requests |
+| **Coordinator** | Initiating service (minimal role) | Orchestrator service (central control) |
+| **Communication** | Services talk directly to each other | All services talk only through orchestrator |
+| **Initiator Topics** | 2 topics:<br>• Produces to start saga<br>• Consumes final result | 2 topics per service:<br>• Produces requests<br>• Consumes results |
+| **Service Subscriptions** | May subscribe to multiple topics<br>(must track consumed events in DB) | Each service subscribes to only 1 topic<br>(simpler, fewer DB writes) |
+| **Code Understanding** | Must read ALL services to understand saga flow | Read orchestrator only to understand flow |
+| **Development Independence** | Less independent (changes affect multiple services) | More independent (changes only affect orchestrator) |
+| **Performance** | • Lower latency (parallel)<br>• Less network traffic<br>• Fewer events | • Higher latency (sequential)<br>• More network traffic<br>• 2x events (through orchestrator) |
+| **Single Point of Failure** | None (distributed) | Orchestrator (must be highly available) |
+| **Rollback Trigger** | Individual services trigger compensations | Orchestrator triggers all compensations |
+
+Choose Choreography when:
+- Performance/latency is critical
+- Services can handle complexity
+- Team can maintain distributed logic
+
+Choose Orchestration when:
+- Centralized visibility needed
+- Service independence important
+- Simpler service logic preferred
+
+Key Difference: Choreography = distributed control, Orchestration = centralized control
+
+# 6 Common services for functional partitioning
+## Common functionalities of various services
+## Service mesh/sidecar pattern
+## Metadata service
+## Service discovery
+## Functional partitioning and various frameworks
+## Library vs. service
+## Common API paradigms
