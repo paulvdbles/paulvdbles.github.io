@@ -952,10 +952,127 @@ Choose Orchestration when:
 Key Difference: Choreography = distributed control, Orchestration = centralized control
 
 # 6 Common services for functional partitioning
+Functional partitioning: scalability technique to partition out backend functions to run on their own clusters
+
 ## Common functionalities of various services
+Services can share non functional requirements
+Implement for each service: duplicate work
+So we can use libraries
+Better solution: centralize in API gateway
+
+API Gateway: 
+- lightweight, service, stateless machines, across DCs
+- Functionality:
+  - Security: authentication, authorization, SSL termination, server side data encryption
+  - Error checking: request validation, request deduplication
+  - Performance / availability: caching, rate limiting, request dispatching
+  - Logging / analytics
+
 ## Service mesh/sidecar pattern
+Service mesh can combat the disadvantage of API gateway:
+- additional latency in each request
+- large cluster of hosts, requires scaling to control costs
+Disadvantage:
+- service unavailable if sidecar is unavailable
+
+
 ## Metadata service
+Stores info used by multiple components within system
+Components pass ids to each other, then request metadata service for data based on id
+less duplicate data (like sql normalization)
+Example: ETL
+
 ## Service discovery
+Typically:
+- each internal service is assigned port number to access
+- each external service/ui serivce is assigned assigned url
+
+
 ## Functional partitioning and various frameworks
+Purpose of web server app, example:
+- browser downloads browser app from node.js
+- when browser makes url request with specific path node.js handles routing and serves right page
+- url may include certain path / query params. node.js app makes appropriate backend requests
+- certain user actions may require multiple backend requests: node.js app exposes own api to browser app.
+- user action -> browser app -> api request to node.js app/server -> one or more backend requests
+
+why doesn't browser directly call backend? 
+- data returned by api endpoint may not be exactly what is required
+- multiple calls over internet between device and dc is inefficient
+
+graphql: allow user to request just what is needed, but harder to secure than rest
+
+Browser app frameworks: react, vue.js, angular
+
+Server side frameworks: express, deno, goji, rocket, vapor, vertx, php
+
+Mobile app dev: 
+- native android: kotlin / java
+- native ios: swift / objective c
+
+cross platform: react native, flutter, ionic, xamarin, electron, PWA
+
+backend development frameworks: gRPC, thrift, protocol buffers, dropwizard, flask, django
+
 ## Library vs. service
+Determine components and discuss pros and cons of implementing these on client or server side
+
+| Aspect | Library | Service |
+|--------|---------|---------|
+| **Version Control** | Users choose version/build and control upgrades. Risk: may use outdated versions with bugs/security issues | Developers control build and upgrades centrally |
+| **Data Sharing** | Limited - no communication between devices. Users must implement host-to-host communication themselves | Built-in data synchronization via requests or database. Transparent to users |
+| **Language** | Language-specific | Technology-agnostic |
+| **Latency** | Predictable | Less predictable (network-dependent) |
+| **Behavior** | Predictable and reproducible | Less predictable due to network issues |
+| **Scalability** | Must scale entire application. User bears costs | Independently scalable. Service provider bears costs |
+| **IP Protection** | Code can be decompiled | Code not exposed to users |
+
+Key takeaway: Libraries offer more user control and predictable performance but require more implementation work and have language constraints. Services provide centralized management and technology flexibility but depend on network reliability.
+
 ## Common API paradigms
+
+OSI Model Layers
+
+| Layer | Name | Description | Examples |
+|-------|------|-------------|----------|
+| 7 | Application | User interface | FTP, HTTP, Telnet |
+| 6 | Presentation | Presents data. Encryption occurs here | UTF, ASCII, JPEG, MPEG, TIFF |
+| 5 | Session | Distinction between data of separate applications. Maintains connections. Controls ports and sessions | RPC, SQL, NFX, X Windows |
+| 4 | Transport | End-to-end connections. Defines reliable or unreliable delivery and flow control | TCP, UDP |
+| 3 | Network | Logical addressing. Defines the physical path the data uses. Routers work at this layer | IP, ICMP |
+| 2 | Data link | Network format. May correct errors at the physical layer | Ethernet, wi-fi |
+| 1 | Physical | Raw bits over physical medium | Fiber, coax, repeater, modem, network adapter, USB |
+
+Key notes: Actor, GraphQL, REST, and WebSocket are built on HTTP (Layer 7). RPC operates at Layer 5 as it directly handles connections, ports, and sessions. Each layer's protocols are implemented using lower-level protocols.
+
+RPC
+- remote procedure call, make procedure execute
+- encoding: CSV, XML, JSON, Thrift, protobuf, avro
+- advantage over rest:
+  - resource optimization. choose for low power devices or scaled large web service
+  - protobuf is efficient, json repetitive and verbose
+  - devs define schemas
+
+graphql:
+- declarative data fetching
+  - client decides what it wants / what format
+  - server can deliver efficiently what is requested
+- tradeoffs are: complexity, learning curve, smaller user community, encodes json only, analytics more complicates, cautious with security
+
+Websocket:
+- communication over persistent TCP connection 
+- new connection every time
+- websocket is a protocol, like http.
+- unlike rest, rpc, graphql: these are design patterns / philosophies
+- stateful (open connection)
+process:
+1. client sends request to server
+2. http handshake + request server to use websocket
+3. next messages use websocket over tcp
+4. open connection, same host needs to handle request (in rest any host should be able to handle)
+
+Compared:
+- REST: startup use REST because simple
+- RPC: large companies can benefit from efficiency and compatibility
+- GraphQL: new
+- Websocket: bidirectional communication
