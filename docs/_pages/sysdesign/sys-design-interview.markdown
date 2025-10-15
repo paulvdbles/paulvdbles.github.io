@@ -1,3 +1,7 @@
+---
+layout: page
+permalink: /system-design/
+---
 # A summary of Zhiyong Tan's system design
 ## 1. A walkthrough of system design concepts
 Discuss approaches and trade-offs
