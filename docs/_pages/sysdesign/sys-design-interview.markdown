@@ -164,6 +164,7 @@ Change mapping:
 - Use elastic's reindex operation, but it's expensive
 
 This table shows the terminology mapping between traditional SQL databases and Elasticsearch, which is helpful for understanding how concepts translate between the two systems.:
+
 | SQL | Elasticsearch |
 |-----|---------------|
 | Database | Index |
