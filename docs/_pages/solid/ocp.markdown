@@ -4,7 +4,7 @@ title: "Open/Closed Principle"
 permalink: /solid/ocp
 ---
 ## Definition 
-You should be able to extend the behavior of a system without having to modify that system.
+You should be able to extend the behavior of a system without having to modify that system. (You should be able to add new functionality WITHOUT changing existing code.)
 
 ### Open
 A class is open when you can extend it (produce subclass and add new methods/fields, override behavior)
